@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Login | Job Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-5">
+        <div class="card form-card">
+            <div class="card-body p-4 p-lg-5">
+                <h2 class="mb-4">Welcome back</h2>
+                <form method="post" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-12">
+                        <label class="form-label">Username</label>
+                        <input class="form-control" name="username" placeholder="Enter username">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Password</label>
+                        <input class="form-control" name="password" type="password" placeholder="Enter password">
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary w-100" type="submit">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

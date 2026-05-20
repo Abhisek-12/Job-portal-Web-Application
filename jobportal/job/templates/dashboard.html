@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard | Job Portal{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card dashboard-card accent-panel">
+            <div class="card-body p-4 p-lg-5">
+                <h1 class="display-6 mb-2">Your Dashboard</h1>
+                <p class="mb-0">
+                    {% if user_role == 'employer' %}
+                        Manage your job listings and track candidate interest.
+                    {% else %}
+                        Review your applications and discover new opportunities.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {% if user_role == 'employer' %}
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title">Jobs Posted</h5>
+                    <p class="display-6 mb-0">{{ total_jobs }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title">Applications Received</h5>
+                    <p class="display-6 mb-0">{{ total_applications }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Your Listings</h3>
+                <a class="btn btn-primary" href="{% url 'post_job' %}">Post New Job</a>
+            </div>
+            <div class="card dashboard-card">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th>
+                                <th>Location</th>
+                                <th>Salary</th>
+                                <th>Applications</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs %}
+                                <tr>
+                                    <td>{{ job.title }}</td>
+                                    <td>{{ job.location }}</td>
+                                    <td>Rs. {{ job.salary }}</td>
+                                    <td>{{ job.application_count }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">You have not posted any jobs yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title">Applications Sent</h5>
+                    <p class="display-6 mb-0">{{ total_applications }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card dashboard-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title">Jobs Available</h5>
+                    <p class="display-6 mb-0">{{ jobs_available }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">Your Applications</h3>
+                        <a class="btn btn-primary" href="{% url 'home' %}">Browse Jobs</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Job</th>
+                                    <th>Employer</th>
+                                    <th>Applied On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in applications %}
+                                    <tr>
+                                        <td>{{ application.job.title }}</td>
+                                        <td>{{ application.job.employer.username }}</td>
+                                        <td>{{ application.applied_at|date:"M d, Y" }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4">You have not applied to any jobs yet.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

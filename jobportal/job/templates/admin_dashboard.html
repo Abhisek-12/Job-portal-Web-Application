@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard | Job Portal{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card dashboard-card accent-panel">
+            <div class="card-body p-4 p-lg-5">
+                <h1 class="display-6 mb-2">Admin Dashboard</h1>
+                <p class="mb-0">Monitor platform growth, recent job activity, and new applications from one place.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="card dashboard-card"><div class="card-body p-4"><h6>Total Users</h6><p class="display-6 mb-0">{{ total_users }}</p></div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card dashboard-card"><div class="card-body p-4"><h6>Employers</h6><p class="display-6 mb-0">{{ total_employers }}</p></div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card dashboard-card"><div class="card-body p-4"><h6>Candidates</h6><p class="display-6 mb-0">{{ total_candidates }}</p></div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card dashboard-card"><div class="card-body p-4"><h6>Applications</h6><p class="display-6 mb-0">{{ total_applications }}</p></div></div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card dashboard-card h-100">
+            <div class="card-body p-4">
+                <h4 class="mb-3">Recent Jobs</h4>
+                <ul class="list-group list-group-flush">
+                    {% for job in recent_jobs %}
+                        <li class="list-group-item px-0">
+                            <strong>{{ job.title }}</strong><br>
+                            <span class="text-muted">{{ job.employer.username }} • {{ job.location }}</span>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item px-0">No jobs posted yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card dashboard-card h-100">
+            <div class="card-body p-4">
+                <h4 class="mb-3">Recent Applications</h4>
+                <ul class="list-group list-group-flush">
+                    {% for application in recent_applications %}
+                        <li class="list-group-item px-0">
+                            <strong>{{ application.applicant.username }}</strong> applied for {{ application.job.title }}
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item px-0">No applications submitted yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
