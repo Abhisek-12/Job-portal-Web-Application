@@ -4,8 +4,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
-from .models import Application, Job, UserProfile
+from .models import Application, Job, SavedJob, UserProfile
 
 
 def get_user_role(user):
@@ -20,6 +21,8 @@ def get_user_role(user):
 def home(request):
     search_query = request.GET.get('q', '').strip()
     location = request.GET.get('location', '').strip()
+    min_salary = request.GET.get('min_salary', '').strip()
+    max_salary = request.GET.get('max_salary', '').strip()
 
     jobs = Job.objects.select_related('employer').order_by('-created_at')
     if search_query:
@@ -31,6 +34,28 @@ def home(request):
             )
     if location:
         jobs = jobs.filter(location__icontains=location)
+    if min_salary.isdigit():
+        jobs = jobs.filter(salary__gte=int(min_salary))
+    if max_salary.isdigit():
+        jobs = jobs.filter(salary__lte=int(max_salary))
+
+    title_suggestions = Job.objects.order_by('title').values_list('title', flat=True).distinct()[:20]
+    location_suggestions = Job.objects.order_by('location').values_list('location', flat=True).distinct()[:20]
+
+    greeting = 'Welcome, Job Seeker!'
+
+    top_companies = (
+        UserProfile.objects
+        .filter(role=UserProfile.EMPLOYER)
+        .annotate(job_count=Count('user__jobs'))
+        .filter(job_count__gt=0)
+        .select_related('user')
+        .order_by('-job_count')[:6]
+    )
+
+    saved_job_ids = []
+    if request.user.is_authenticated and get_user_role(request.user) == UserProfile.CANDIDATE:
+        saved_job_ids = list(SavedJob.objects.filter(candidate=request.user).values_list('job_id', flat=True))
 
     return render(
         request,
@@ -39,7 +64,17 @@ def home(request):
             'jobs': jobs,
             'search_query': search_query,
             'location_query': location,
+            'min_salary': min_salary,
+            'max_salary': max_salary,
             'user_role': get_user_role(request.user),
+            'greeting': greeting,
+            'job_count': Job.objects.count(),
+            'company_count': UserProfile.objects.filter(role=UserProfile.EMPLOYER).count(),
+            'candidate_count': UserProfile.objects.filter(role=UserProfile.CANDIDATE).count(),
+            'top_companies': top_companies,
+            'title_suggestions': title_suggestions,
+            'location_suggestions': location_suggestions,
+            'saved_job_ids': saved_job_ids,
         },
     )
 
@@ -153,6 +188,26 @@ def post_job(request):
 
 
 @login_required
+def delete_job(request, id):
+    job = get_object_or_404(Job, id=id)
+    if request.user != job.employer and not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "You do not have permission to delete this job.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        job.delete()
+        messages.success(request, "Job deleted successfully.")
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('admin_dashboard')
+        return redirect('dashboard')
+
+    messages.error(request, "Invalid request.")
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('admin_dashboard')
+    return redirect('dashboard')
+
+
+@login_required
 def apply_job(request, id):
     if get_user_role(request.user) != UserProfile.CANDIDATE:
         messages.error(request, "Only candidates can apply for jobs.")
@@ -178,6 +233,35 @@ def apply_job(request, id):
 
 
 @login_required
+def save_job(request, id):
+    job = get_object_or_404(Job, id=id)
+    if get_user_role(request.user) != UserProfile.CANDIDATE:
+        messages.error(request, 'Only candidates can save jobs.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        saved_job, created = SavedJob.objects.get_or_create(job=job, candidate=request.user)
+        if created:
+            messages.success(request, 'Job saved successfully.')
+        else:
+            messages.info(request, 'This job is already in your saved list.')
+        return redirect('saved_jobs')
+
+    messages.error(request, 'Invalid request.')
+    return redirect('home')
+
+
+@login_required
+def saved_jobs(request):
+    if get_user_role(request.user) != UserProfile.CANDIDATE:
+        messages.error(request, 'Only candidates can view saved jobs.')
+        return redirect('dashboard')
+
+    saved_jobs = SavedJob.objects.filter(candidate=request.user).select_related('job', 'job__employer')
+    return render(request, 'saved_jobs.html', {'saved_jobs': saved_jobs})
+
+
+@login_required
 @user_passes_test(lambda user: user.is_staff or user.is_superuser)
 def admin_dashboard(request):
     return render(
@@ -193,3 +277,68 @@ def admin_dashboard(request):
             'recent_applications': Application.objects.select_related('job', 'applicant').order_by('-applied_at')[:5],
         },
     )
+
+
+@login_required
+@user_passes_test(lambda user: user.is_staff or user.is_superuser)
+def admin_users(request):
+    role = request.GET.get('role')
+    users = User.objects.select_related('profile').order_by('username')
+    page_title = 'All Users'
+    page_description = 'Review all user accounts registered on the platform.'
+
+    selected_role = role if role in (UserProfile.EMPLOYER, UserProfile.CANDIDATE) else None
+
+    if selected_role:
+        users = users.filter(profile__role=selected_role)
+        page_title = 'Employers' if selected_role == UserProfile.EMPLOYER else 'Candidates'
+        page_description = f'Review all {page_title.lower()} on the platform.'
+
+    return render(request, 'admin_users.html', {
+        'users': users,
+        'page_title': page_title,
+        'page_description': page_description,
+        'selected_role': selected_role,
+    })
+
+
+@login_required
+@user_passes_test(lambda user: user.is_staff or user.is_superuser)
+def admin_delete_user(request, id):
+    user_to_delete = get_object_or_404(User, id=id)
+    if request.user == user_to_delete:
+        messages.error(request, "You cannot delete your own account from this page.")
+        return redirect('admin_users')
+
+    if request.method == 'POST':
+        username = user_to_delete.username
+        user_to_delete.delete()
+        messages.success(request, f"User '{username}' deleted successfully along with related data.")
+        if request.POST.get('return_role') in (UserProfile.EMPLOYER, UserProfile.CANDIDATE):
+            return redirect(f"{reverse('admin_users')}?role={request.POST.get('return_role')}")
+        return redirect('admin_users')
+
+    messages.error(request, "Invalid request.")
+    return redirect('admin_users')
+
+
+@login_required
+@user_passes_test(lambda user: user.is_staff or user.is_superuser)
+def admin_jobs(request):
+    jobs = Job.objects.select_related('employer').order_by('-created_at')
+    return render(request, 'admin_jobs.html', {
+        'jobs': jobs,
+        'page_title': 'All Jobs',
+        'page_description': 'Review all job postings currently in the system.',
+    })
+
+
+@login_required
+@user_passes_test(lambda user: user.is_staff or user.is_superuser)
+def admin_applications(request):
+    applications = Application.objects.select_related('job', 'applicant').order_by('-applied_at')
+    return render(request, 'admin_applications.html', {
+        'applications': applications,
+        'page_title': 'All Applications',
+        'page_description': 'Review all job applications submitted by candidates.',
+    })

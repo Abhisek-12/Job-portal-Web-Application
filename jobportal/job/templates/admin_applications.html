@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} | Job Portal{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>{{ page_title }}</h2>
+            <p class="text-muted">{{ page_description }}</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Applicant</th>
+                                    <th>Job</th>
+                                    <th>Resume</th>
+                                    <th>Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in applications %}
+                                    <tr>
+                                        <td>{{ application.applicant.username }}</td>
+                                        <td>{{ application.job.title }}</td>
+                                        <td>
+                                            {% if application.resume %}
+                                                <a href="{{ application.resume.url }}" target="_blank">Download</a>
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ application.applied_at|date:'M d, Y' }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No applications found.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
